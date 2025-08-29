@@ -1,47 +1,48 @@
 plugins {
     `java-library`
-    id("com.github.johnrengelman.shadow") version "8.0.0"
-    id("xyz.jpenilla.run-paper") version "2.0.1"
+    id("xyz.jpenilla.run-paper") version "2.3.1"
 }
 
 
 group = "dev.kugge"
-version = "0.0.1"
+version = "0.0.2-SNAPSHOT"
 
+val targetJavaVersion = 21
 java {
-    toolchain.languageVersion.set(JavaLanguageVersion.of(17))
+    val javaVersion = JavaVersion.toVersion(targetJavaVersion)
+    sourceCompatibility = javaVersion
+    targetCompatibility = javaVersion
+    if (JavaVersion.current() < javaVersion) {
+        toolchain.languageVersion.set(JavaLanguageVersion.of(targetJavaVersion))
+    }
 }
 
 repositories {
-    mavenLocal()
     mavenCentral()
     maven("https://jitpack.io")
     maven("https://oss.sonatype.org/content/groups/public/")
-    maven("https://papermc.io/repo/repository/maven-public/")
+    maven("https://repo.papermc.io/repository/maven-public/")
+    maven ( "https://repo.bluecolored.de/releases" )
 }
 
 dependencies {
-    compileOnly("dev.folia:folia-api:1.19.4-R0.1-SNAPSHOT")
-    compileOnly("com.github.BlueMap-Minecraft:BlueMapAPI:v2.4.0")
+    compileOnly("io.papermc.paper:paper-api:1.21.8-R0.1-SNAPSHOT")
+    compileOnly("de.bluecolored:bluemap-api:2.7.4")
 }
 
 tasks.compileJava {
     options.encoding = Charsets.UTF_8.name()
-    options.release.set(17)
+    options.release.set(21)
 }
 
 tasks.processResources {
     filter { line -> line.replace("\${version}", project.version.toString()) }
 }
 
-tasks.shadowJar {
-    archiveFileName.set("SignMarkers-${project.version}.jar")
-}
-
-tasks.jar {
-    enabled = false
-}
-
-tasks.assemble {
-    dependsOn(tasks.shadowJar)
+tasks.runServer {
+    downloadPlugins {
+        github("BlueMap-Minecraft", "BlueMap", "v5.11", "bluemap-5.11-paper.jar")
+    }
+    minecraftVersion("1.21.8")
+    jvmArgs("-DPaper.IgnoreJavaVersion=true", "-Dcom.mojang.eula.agree=true")
 }
