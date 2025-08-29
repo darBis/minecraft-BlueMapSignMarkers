@@ -20,8 +20,7 @@ public class SignDestroyWatcher implements Listener {
         MarkerSet set = SignMarkers.markerSet.get(block.getWorld());
         if (set == null) return;
 
-        Vector3d pos = new Vector3d(block.getX(), block.getY(), block.getZ());
-        String id = "marker-" + pos.getX() + "-" + pos.getY() + "-" + pos.getZ();
+        String id = SignMarkers.MARKER_PREFIX + block.getX() + "-" + block.getY() + "-" + block.getZ();
 
         Marker marker = set.get(id);
         if (marker == null) return;
