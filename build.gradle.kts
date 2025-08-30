@@ -1,8 +1,8 @@
 plugins {
     `java-library`
     id("xyz.jpenilla.run-paper") version "2.3.1"
+    id("com.github.johnrengelman.shadow") version "8.1.1"
 }
-
 
 group = "dev.kugge"
 version = "0.0.2-SNAPSHOT"
@@ -59,4 +59,15 @@ tasks.runServer {
     }
     minecraftVersion("1.21.8")
     jvmArgs("-DPaper.IgnoreJavaVersion=true", "-Dcom.mojang.eula.agree=true")
+}
+
+tasks.shadowJar {
+    archiveClassifier.set("")
+    mergeServiceFiles()
+    // minimize() // Odkomentuj, pokud chceš zmenšit závislosti (může rozbít některé pluginy)
+    // relocate("com.example.lib", "dev.kugge.libs.example")
+}
+
+tasks.build {
+    dependsOn( tasks.shadowJar)
 }
