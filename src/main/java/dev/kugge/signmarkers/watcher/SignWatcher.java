@@ -50,11 +50,11 @@ public class SignWatcher implements Listener {
 
         var lines = new ArrayList<String>(2);
         Component clabel1 = event.line(1);
-        if (clabel1 != null && clabel1 != Component.empty()){
+        if (clabel1 != null && clabel1 != Component.empty()) {
             lines.add(LegacyComponentSerializer.legacySection().serialize(clabel1));
         }
         Component clabel2 = event.line(2);
-        if (clabel2 != null && clabel2 != Component.empty()){
+        if (clabel2 != null && clabel2 != Component.empty()) {
             lines.add(LegacyComponentSerializer.legacySection().serialize(clabel2));
         }
         if (lines.size() == 0) {
@@ -64,7 +64,7 @@ public class SignWatcher implements Listener {
         }
 
         String label = String.join(" ", lines);
-        String detail = getDetailHtml(iconName, lines);
+        String detail = getDetailHtml(ii.iconAddress, lines);
 
         Block block = event.getBlock();
 
@@ -82,16 +82,16 @@ public class SignWatcher implements Listener {
         event.getPlayer().sendMessage(Component.text("Created '" + iconName + "' marker"));
     }
 
-    private static @NotNull String getDetailHtml(String iconName, List<String> lines) {
+    private static @NotNull String getDetailHtml(String iconImage, List<String> lines) {
         var detailTempltate =
                 " <div style=\"display:flex; align-items:center; gap:8px;\">\n" +
-                "    <img src=\"./markers/{icon}.png\" style=\"flex:0 0 auto;\">\n" +
-                "    <div style=\"display:flex; flex-direction:column;\">\n" +
-                "      {lines}\n" +
-                "    </div>\n" +
-                "  </div>";
+                        "    <img src=\"{icon}\" style=\"flex:0 0 auto;\">\n" +
+                        "    <div style=\"display:flex; flex-direction:column;\">\n" +
+                        "      {lines}\n" +
+                        "    </div>\n" +
+                        "  </div>";
 
-        String detail = detailTempltate.replace("{icon}", iconName).replace("{lines}",String.join("\n", lines.stream().map(s-> "<div style=\"white-space:nowrap\">" + s + "</div>").toList()));
+        String detail = detailTempltate.replace("{icon}", iconImage).replace("{lines}", String.join("\n", lines.stream().map(s -> "<div style=\"white-space:nowrap\">" + s + "</div>").toList()));
         return detail;
     }
 
@@ -120,7 +120,7 @@ public class SignWatcher implements Listener {
             switch (facing) {
                 case NORTH: // Sign facing north, attached to south face
                     xPos = xPos + 0.5;
-                    zPos = zPos + 1.0-.1;
+                    zPos = zPos + 1.0 - .1;
                     break;
                 case SOUTH: // Sign facing south, attached to north face
                     xPos = xPos + 0.5;
@@ -131,7 +131,7 @@ public class SignWatcher implements Listener {
                     zPos = zPos + 0.5;
                     break;
                 case WEST:  // Sign facing west, attached to east face
-                    xPos = xPos + 1.0-.1;
+                    xPos = xPos + 1.0 - .1;
                     zPos = zPos + 0.5;
                     break;
                 default:
