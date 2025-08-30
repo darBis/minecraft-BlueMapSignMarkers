@@ -2,8 +2,8 @@ name: BlueMapSignMarkers
 version: ${version}
 main: dev.kugge.signmarkers.SignMarkers
 api-version: 1.19
-authors: [kugge]
-depend: [BlueMap]
+authors: [ kugge ]
+depend: [ BlueMap ]
 description: Add markers to BlueMap with signs
 
 commands:
@@ -11,3 +11,15 @@ commands:
     description: SignMarkers commands
     usage: /signmarkers <command>
     permission: signmarkers.command
+    default: true
+    aliases: [ sm ]
+
+permissions:
+  signmarkers.command:
+    description: Allows access to basic SignMarkers commands
+    default: true
+  signmarkers.command.admin:
+    description: Allows access to administrative commands
+    default: op
+    children:
+        signmarkers.command: true
