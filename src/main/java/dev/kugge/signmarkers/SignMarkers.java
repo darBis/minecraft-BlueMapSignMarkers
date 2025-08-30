@@ -19,11 +19,17 @@ import org.bukkit.plugin.java.JavaPlugin;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.*;
-import java.nio.file.Path;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.file.*;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.util.Collections;
 import java.util.Hashtable;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
+import java.util.stream.Stream;
 
 public class SignMarkers extends JavaPlugin {
 
@@ -40,12 +46,14 @@ public class SignMarkers extends JavaPlugin {
         instance = this;
         logger = getLogger();
         createFiles();
+
         for (World world : Bukkit.getWorlds()) {
             loadWorldMarkerSet(world);
             registerWorld(world);
         }
         BlueMapAPI.onEnable(api -> {
             webRoot = api.getWebApp().getWebRoot();
+            extractMarkerResources(webRoot);
             loadAvailableIcons();
         });
         Bukkit.getPluginManager().registerEvents(new SignWatcher(), this);
@@ -73,31 +81,46 @@ public class SignMarkers extends JavaPlugin {
     }
 
     public void loadAvailableIcons() {
-        File iconsDir = new File(SignMarkers.webRoot + "/markers");
-        var iconCount = 0;
+        var iconsDir = new File(SignMarkers.webRoot + "/markers");
         if (iconsDir.exists() && iconsDir.isDirectory()) {
-            for (File file : iconsDir.listFiles()) {
-                if (file.isFile() && file.getName().endsWith(".png")) {
-                    String iconName = file.getName().substring(0, file.getName().length() - 4);
+            try {
+                Files.walkFileTree(iconsDir.toPath(), new SimpleFileVisitor<Path>() {
+                    @Override
+                    public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                        super.visitFile(file, attrs);
 
-                    try {
-                        BufferedImage image = ImageIO.read(file);
-                        int width = image.getWidth();
-                        int height = image.getHeight();
-                        var anchor = new Vector2i(height / 2, width / 2);
-                        var ii = new IconInfo();
-                        ii.anchor = anchor;
-                        ii.iconAddress = "./markers/" + file.getName();
-                        availableIcons.put(iconName, ii);
-                        iconCount++;
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                        return;
+                        var f = file.toFile();
+                        if (f.isFile() && f.getName().endsWith(".png")) {
+                            String iconName = f.getName().substring(0, f.getName().length() - 4);
+                            var relpath = SignMarkers.webRoot.toUri().relativize(f.toURI());
+
+                            BufferedImage image = ImageIO.read(f);
+                            int width = image.getWidth();
+                            int height = image.getHeight();
+                            var anchor = new Vector2i(height / 2, width / 2);
+                            var newIcon = new IconInfo();
+                            newIcon.anchor = anchor;
+                            newIcon.iconAddress = relpath.toString();
+
+                            var icon = availableIcons.get(iconName);
+                            if (icon != null) {
+                                if (newIcon.iconAddress.length() < icon.iconAddress.length()) {
+                                    getLogger().warning("Duplicate icon '" + iconName + "' from '" + newIcon.iconAddress + "' overrides '" + icon.iconAddress + "'");
+                                    availableIcons.put(iconName, newIcon);
+                                }
+                            } else {
+                                availableIcons.put(iconName, newIcon);
+                            }
+
+                        }
+                        return FileVisitResult.CONTINUE;
                     }
-                }
+                });
+            } catch (IOException e) {
+                throw new RuntimeException(e);
             }
         }
-        getLogger().info("Loaded " + iconCount + " marker icons.");
+        getLogger().info("Loaded " + availableIcons.size() + " marker icons.");
     }
 
     private void createFiles() {
@@ -188,6 +211,85 @@ public class SignMarkers extends JavaPlugin {
                 markerSet.put(world, set);
             }
         }));
+    }
+
+    /**
+     * Extracts marker PNG files from plugin resources to BlueMap webroot
+     * Always extracts to clean folder to ensure markers match plugin version
+     */
+    private void extractMarkerResources(Path webRoot) {
+        try {
+            Path markersDir = webRoot.resolve("markers").resolve("dynamp");
+
+            // Clean existing markers/std directory if it exists
+            if (Files.exists(markersDir)) {
+                Files.walkFileTree(markersDir, new SimpleFileVisitor<Path>() {
+                    @Override
+                    public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                        super.visitFile(file, attrs);
+                        Files.delete(file);
+                        return FileVisitResult.CONTINUE;
+                    }
+
+                    @Override
+                    public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+                        super.postVisitDirectory(dir, exc);
+                        Files.delete(dir);
+                        return FileVisitResult.CONTINUE;
+                    }
+                });
+            }
+
+            // Create markers/std directory if it doesn't exist
+            Files.createDirectories(markersDir);
+
+            // Extract all marker PNG files from resources to clean directory
+            extractResourcesFromJar("/markers/dynmap", markersDir, ".png");
+            // also extract readme and license files
+            extractResourcesFromJar("/markers/dynmap", markersDir, ".txt");
+            extractResourcesFromJar("/markers/dynmap", markersDir, ".md");
+            getLogger().info("Standard markers extracted to directory: " + markersDir.toString());
+
+        } catch (Exception e) {
+            getLogger().warning("Failed to extract marker resources: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Extracts files from the plugin JAR to a target directory
+     * Always extracts all files since directory is cleaned beforehand
+     */
+    private void extractResourcesFromJar(String resourcePath, Path targetDir, String fileExtension) throws IOException, URISyntaxException {
+
+        URI uri = getClass().getResource(resourcePath).toURI();
+        Path myPath;
+        FileSystem fileSystem = null;
+        try {
+            if (uri.getScheme().equals("jar")) {
+                fileSystem = FileSystems.newFileSystem(uri, Collections.<String, Object>emptyMap());
+                myPath = fileSystem.getPath(resourcePath);
+            } else {
+                myPath = Paths.get(uri);
+            }
+
+            Stream<Path> walk = Files.walk(myPath, 1).filter(p -> {
+                return p.getFileName().toString().endsWith(fileExtension);
+            });
+
+            for (Iterator<Path> it = walk.iterator(); it.hasNext(); ) {
+                var path = it.next();
+                try (InputStream ins = Files.newInputStream(path)) {
+                    String fileName = path.getFileName().toString();
+                    var targetFile = targetDir.resolve(fileName);
+                    Files.copy(ins, targetFile, StandardCopyOption.REPLACE_EXISTING);
+                }
+            }
+        } finally {
+            if (fileSystem != null) {
+                fileSystem.close();
+            }
+        }
+
     }
 
     public static class IconInfo {
