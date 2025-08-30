@@ -17,6 +17,14 @@ java {
     }
 }
 
+sourceSets {
+    main {
+        java {
+            srcDir("src/ChatImage/src/main/java")
+        }
+    }
+}
+
 repositories {
     mavenCentral()
     maven("https://jitpack.io")
@@ -28,6 +36,7 @@ repositories {
 dependencies {
     compileOnly("io.papermc.paper:paper-api:1.21.8-R0.1-SNAPSHOT")
     compileOnly("de.bluecolored:bluemap-api:2.7.4")
+    implementation("com.mortennobel:java-image-scaling:0.8.6")
 }
 
 tasks.processResources {
