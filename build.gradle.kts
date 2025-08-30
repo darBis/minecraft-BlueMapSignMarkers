@@ -30,13 +30,27 @@ dependencies {
     compileOnly("de.bluecolored:bluemap-api:2.7.4")
 }
 
+tasks.processResources {
+    // IMPORTANT: do NOT call 'expand(...)' on the whole task.
+    // Copy everything as-is by default.
+
+    // If you need variable expansion, restrict it to text files only:
+    filesMatching(listOf("plugin.yml", "**/*.yml", "**/*.yaml", "**/*.properties", "**/*.txt", "**/*.md")) {
+        filteringCharset = "UTF-8"
+        // adjust variables as needed
+        expand(
+            mapOf(
+                "version" to project.version,
+                "name" to project.name
+            )
+        )
+    }
+    // No filters on binaries (*.png, *.jpg, *.pdf, etc.)
+}
+
 tasks.compileJava {
     options.encoding = Charsets.UTF_8.name()
     options.release.set(21)
-}
-
-tasks.processResources {
-    filter { line -> line.replace("\${version}", project.version.toString()) }
 }
 
 tasks.runServer {
